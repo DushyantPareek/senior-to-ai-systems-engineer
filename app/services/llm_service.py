@@ -1,9 +1,25 @@
 import httpx
 import json
 import time
+from app.config import settings
 
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+class LLMServiceError(Exception):
+    pass
+
+
+class LLMConnectionError(LLMServiceError):
+    pass
+
+
+class LLMTimeoutError(LLMServiceError):
+    pass
+
+
+class LLMResponseError(LLMServiceError):
+    pass
+
+OLLAMA_GENERATE_URL = f"{settings.ollama_url}/api/generate"
 
 
 async def ask_llm(question: str) -> str:
@@ -11,29 +27,54 @@ async def ask_llm(question: str) -> str:
         "model": "qwen3:4b",
         "prompt": question,
         "stream": False,
-        "think": False
+        "think": False,
+        "options": {
+            "num_predict": 500
+        }
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            OLLAMA_URL,
-            json=payload
-        )
+    try:
 
-        response.raise_for_status()
+        async with httpx.AsyncClient(
+            timeout=120.0
+        ) as client:
 
-        result = response.json()
+            response = await client.post(
+                OLLAMA_GENERATE_URL,
+                json=payload
+            )
 
-    return result["response"]
+            response.raise_for_status()
 
+            result = response.json()
 
-import json
-import time
+        answer = result.get("response")
 
-import httpx
+        if not answer:
+            raise LLMResponseError(
+                "LLM returned an empty response"
+            )
 
+        return answer
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+    except httpx.ConnectError as exc:
+
+        raise LLMConnectionError(
+            "Unable to connect to Ollama"
+        ) from exc
+
+    except httpx.ReadTimeout as exc:
+
+        raise LLMTimeoutError(
+            "LLM request timed out"
+        ) from exc
+
+    except httpx.HTTPStatusError as exc:
+
+        raise LLMResponseError(
+            f"Ollama returned HTTP "
+            f"{exc.response.status_code}"
+        ) from exc
 
 
 async def stream_llm(question: str):
@@ -43,7 +84,7 @@ async def stream_llm(question: str):
         "stream": True,
         "think": False,
         "options": {
-            "num_predict": 300
+            "num_predict": 500
         }
     }
 
@@ -54,117 +95,164 @@ async def stream_llm(question: str):
 
     thinking = True
     buffer = ""
+    response_received = False
 
-    async with httpx.AsyncClient(timeout=None) as client:
-        async with client.stream(
-            "POST",
-            OLLAMA_URL,
-            json=payload
-        ) as response:
+    try:
 
-            response.raise_for_status()
+        async with httpx.AsyncClient(
+            timeout=None
+        ) as client:
 
-            async for line in response.aiter_lines():
+            async with client.stream(
+                "POST",
+                OLLAMA_GENERATE_URL,
+                json=payload
+            ) as response:
 
-                if not line:
-                    continue
+                response.raise_for_status()
 
-                data = json.loads(line)
+                async for line in response.aiter_lines():
 
-                # Capture first raw output from the model
-                if (
-                    raw_ttft is None
-                    and data.get("response", "")
-                ):
-                    raw_ttft = (
-                        time.perf_counter()
-                        - request_start
-                    )
+                    if not line:
+                        continue
 
-                # Final Ollama response
-                if data.get("done"):
+                    data = json.loads(line)
 
-                    total_time = (
-                        time.perf_counter()
-                        - request_start
-                    )
-
-                    print("\n[LLM Metrics]")
-
-                    print(
-                        f"Raw TTFT: "
-                        f"{raw_ttft:.2f}s"
-                        if raw_ttft is not None
-                        else "Raw TTFT: N/A"
-                    )
-
-                    print(
-                        f"Final Answer TTFT: "
-                        f"{final_answer_ttft:.2f}s"
-                        if final_answer_ttft is not None
-                        else "Final Answer TTFT: N/A"
-                    )
-
-                    print(
-                        f"Total time: "
-                        f"{total_time:.2f}s"
-                    )
-
-                    print(
-                        f"Output tokens: "
-                        f"{data.get('eval_count')}"
-                    )
-
-                    print(
-                        f"Done reason: "
-                        f"{data.get('done_reason')}"
-                    )
-
+                    # Capture first raw output
                     if (
-                        data.get("eval_duration")
-                        and data.get("eval_count")
+                        raw_ttft is None
+                        and data.get("response", "")
                     ):
-                        tokens_per_second = (
-                            data["eval_count"]
-                            / (
-                                data["eval_duration"]
-                                / 1_000_000_000
-                            )
+                        raw_ttft = (
+                            time.perf_counter()
+                            - request_start
+                        )
+
+                    # Final Ollama response
+                    if data.get("done"):
+
+                        total_time = (
+                            time.perf_counter()
+                            - request_start
+                        )
+
+                        done_reason = data.get(
+                            "done_reason"
+                        )
+
+                        print("\n[LLM Metrics]")
+
+                        print(
+                            f"Raw TTFT: "
+                            f"{raw_ttft:.2f}s"
+                            if raw_ttft is not None
+                            else "Raw TTFT: N/A"
                         )
 
                         print(
-                            f"Tokens/sec: "
-                            f"{tokens_per_second:.2f}"
+                            f"Final Answer TTFT: "
+                            f"{final_answer_ttft:.2f}s"
+                            if final_answer_ttft is not None
+                            else "Final Answer TTFT: N/A"
                         )
 
-                    break
+                        print(
+                            f"Total time: "
+                            f"{total_time:.2f}s"
+                        )
 
-                chunk = data.get("response", "")
+                        print(
+                            f"Output tokens: "
+                            f"{data.get('eval_count')}"
+                        )
 
-                if not chunk:
-                    continue
+                        print(
+                            f"Done reason: "
+                            f"{done_reason}"
+                        )
 
-                # Add incoming text to buffer
-                buffer += chunk
+                        if (
+                            data.get("eval_duration")
+                            and data.get("eval_count")
+                        ):
+                            tokens_per_second = (
+                                data["eval_count"]
+                                / (
+                                    data["eval_duration"]
+                                    / 1_000_000_000
+                                )
+                            )
 
-                # -----------------------------
-                # THINKING PHASE
-                # -----------------------------
-                if thinking:
+                            print(
+                                f"Tokens/sec: "
+                                f"{tokens_per_second:.2f}"
+                            )
 
-                    if "</think>" not in buffer:
-                        continue
+                        # Token limit reached
+                        if done_reason == "length":
+                            yield (
+                                "\n\n"
+                                "[Response truncated: "
+                                "the model reached its "
+                                "token limit.]"
+                            )
+                        elif (
+                            done_reason == "stop"
+                            and not response_received
+                        ):
+                            yield (
+                                "\n\n"
+                                "[LLM error: "
+                                "Ollama completed without "
+                                "returning an answer.]"
+                            )
 
-                    # Remove everything before </think>
-                    _, final_text = buffer.split(
-                        "</think>",
-                        1
+                        break
+
+                    chunk = data.get(
+                        "response",
+                        ""
                     )
 
-                    thinking = False
-                    buffer = ""
+                    if not chunk:
+                        continue
 
-                    if final_text:
+                    response_received = True
+
+                    # Add incoming text to buffer
+                    buffer += chunk
+
+                    # -----------------------------
+                    # THINKING PHASE
+                    # -----------------------------
+                    if thinking:
+
+                        if "</think>" not in buffer:
+                            continue
+
+                        # Remove everything before </think>
+                        _, final_text = buffer.split(
+                            "</think>",
+                            1
+                        )
+
+                        thinking = False
+                        buffer = ""
+
+                        if final_text:
+
+                            if final_answer_ttft is None:
+                                final_answer_ttft = (
+                                    time.perf_counter()
+                                    - request_start
+                                )
+
+                            yield final_text
+
+                    # -----------------------------
+                    # FINAL ANSWER PHASE
+                    # -----------------------------
+                    else:
 
                         if final_answer_ttft is None:
                             final_answer_ttft = (
@@ -172,17 +260,54 @@ async def stream_llm(question: str):
                                 - request_start
                             )
 
-                        yield final_text
+                        yield chunk
 
-                # -----------------------------
-                # FINAL ANSWER PHASE
-                # -----------------------------
-                else:
+    except httpx.ConnectError:
 
-                    if final_answer_ttft is None:
-                        final_answer_ttft = (
-                            time.perf_counter()
-                            - request_start
-                        )
+        print(
+            "[LLM Error] Unable to connect to Ollama"
+        )
 
-                    yield chunk
+        yield (
+            "\n\n"
+            "[LLM connection error: "
+            "Ollama is unavailable.]"
+        )
+
+    except httpx.ReadTimeout:
+
+        print(
+            "[LLM Error] Ollama request timed out"
+        )
+
+        yield (
+            "\n\n"
+            "[LLM timeout: "
+            "the request took too long.]"
+        )
+
+    except httpx.HTTPStatusError as exc:
+
+        print(
+            "[LLM Error] Ollama returned HTTP "
+            f"{exc.response.status_code}"
+        )
+
+        yield (
+            "\n\n"
+            "[LLM error: "
+            "Ollama returned an HTTP error.]"
+        )
+
+    except json.JSONDecodeError:
+
+        print(
+            "[LLM Error] Invalid JSON received "
+            "from Ollama"
+        )
+
+        yield (
+            "\n\n"
+            "[LLM error: "
+            "received an invalid response.]"
+        )

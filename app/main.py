@@ -1,14 +1,27 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from app.services.llm_service import ask_llm
+from fastapi import (
+    FastAPI,
+    HTTPException
+)
+from pydantic import BaseModel, Field
+from app.services.llm_service import (
+    ask_llm,
+    stream_llm,
+    LLMConnectionError,
+    LLMTimeoutError,
+    LLMResponseError
+)
 from fastapi.responses import StreamingResponse
-from app.services.llm_service import stream_llm
 
 app = FastAPI()
 
 
 class AskRequest(BaseModel):
-    question: str
+    question: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Question to send to the LLM"
+    )
 
 
 @app.get("/")
@@ -23,12 +36,38 @@ async def health():
 
 @app.post("/ask")
 async def ask(request: AskRequest):
-    answer = await ask_llm(request.question)
 
-    return {
-        "question": request.question,
-        "answer": answer
-    }
+    try:
+
+        answer = await ask_llm(
+            request.question
+        )
+
+        return {
+            "question": request.question,
+            "answer": answer
+        }
+
+    except LLMConnectionError as exc:
+
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc)
+        )
+
+    except LLMTimeoutError as exc:
+
+        raise HTTPException(
+            status_code=504,
+            detail=str(exc)
+        )
+
+    except LLMResponseError as exc:
+
+        raise HTTPException(
+            status_code=502,
+            detail=str(exc)
+        )
 
 @app.post("/ask/stream")
 async def ask_stream(request: AskRequest):
