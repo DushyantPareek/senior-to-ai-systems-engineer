@@ -2,7 +2,10 @@ import httpx
 import json
 import time
 from app.config import settings
-
+from app.prompts.prompts import (
+    SYSTEM_PROMPT,
+    build_prompt
+)
 
 class LLMServiceError(Exception):
     pass
@@ -22,10 +25,18 @@ class LLMResponseError(LLMServiceError):
 OLLAMA_GENERATE_URL = f"{settings.ollama_url}/api/generate"
 
 
-async def ask_llm(question: str) -> str:
+async def ask_llm(question: str, context: str = ""
+) -> str:
+
+    prompt = build_prompt(
+    question=question,
+    context=context
+)
+
     payload = {
         "model": "qwen3:4b",
-        "prompt": question,
+        "system": SYSTEM_PROMPT,
+        "prompt": prompt,
         "stream": False,
         "think": False,
         "options": {
