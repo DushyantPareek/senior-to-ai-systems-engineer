@@ -1,4 +1,7 @@
-import re
+from app.services.embedding_service import (
+    get_embedding,
+    cosine_similarity,
+)
 
 documents = [
     {
@@ -23,73 +26,66 @@ documents = [
     },
 ]
 
-STOP_WORDS = {
-    "a",
-    "an",
-    "the",
-    "is",
-    "what",
-    "how",
-    "why",
-    "are",
-    "of",
-    "to",
-    "in",
-}
-
-def tokenize(text: str) -> set[str]:
-    text = text.lower()
-
-    words = re.findall(
-        r"\b\w+\b",
-        text
-    )
-
-    return {
-        word
-        for word in words
-        if word not in STOP_WORDS
-    }
-
-def retrieve(question: str, top_k: int = 2) -> list[str]:
-    question_words = tokenize(question)
-
-    scored_documents = []
+async def build_index() -> list[dict]:
+    indexed_documents = []
 
     for document in documents:
-        document_words = tokenize(
+        vector = await get_embedding(
             document["text"]
         )
 
-        score = len(
-            question_words & document_words
+        indexed_documents.append({
+            "id": document["id"],
+            "text": document["text"],
+            "embedding": vector
+        })
+
+    return indexed_documents
+
+async def retrieve(
+    question: str,
+    index: list[dict],
+    top_k: int = 2
+) -> list[dict]:
+
+    question_vector = await get_embedding(question)
+
+    scored_documents = []
+
+    for document in index:
+        score = cosine_similarity(
+            question_vector,
+            document["embedding"]
         )
 
-        scored_documents.append(
-            (score, document["text"])
-        )
-        
+        scored_documents.append({
+            "id": document["id"],
+            "score": score,
+            "text": document["text"]
+        })
 
     scored_documents.sort(
-        key=lambda item: item[0],
+        key=lambda item: item["score"],
         reverse=True
     )
 
-    return [
-        {
-            "score": score,
-            "text": text
-        }
-        for score, text in scored_documents[:top_k]
-        if score > 0
-    ]
-
+    return scored_documents[:top_k]
 
 if __name__ == "__main__":
-    results = retrieve("How can two programs exchange information?")
+    import asyncio
 
-    for result in results:
-        print(
-            f"Score: {result['score']} | "
-            f"Document: {result['text']}"
+    async def test():
+        index = await build_index()
+
+        results = await retrieve(
+            "How can two programs exchange information?",
+            index
         )
+
+        for result in results:
+            print(
+                f"Score: {result['score']:.4f} | "
+                f"Document: {result['text']}"
+            )
+
+    asyncio.run(test())
