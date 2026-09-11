@@ -25,7 +25,9 @@ class LLMResponseError(LLMServiceError):
 OLLAMA_GENERATE_URL = f"{settings.ollama_url}/api/generate"
 
 
-async def ask_llm(question: str, context: str = ""
+async def ask_llm(question: str, 
+    context: str = "",
+    system_prompt: str = SYSTEM_PROMPT
 ) -> str:
 
     prompt = build_prompt(
@@ -35,7 +37,7 @@ async def ask_llm(question: str, context: str = ""
 
     payload = {
         "model": "qwen3:4b",
-        "system": SYSTEM_PROMPT,
+        "system": system_prompt,
         "prompt": prompt,
         "stream": False,
         "think": False,

@@ -7,22 +7,37 @@ documents = [
     {
         "id": 1,
         "text": (
-            "Dependency injection provides dependencies to a class "
-            "from outside rather than creating them internally."
+            "Dependency injection provides dependencies to a "
+            "class from outside rather than creating them internally."
         ),
+        "source": "software-design-notes",
+        "section": "dependency-injection",
     },
     {
         "id": 2,
         "text": (
-            "An API is an interface that allows software systems "
-            "to communicate."
+            "An API is an interface that allows software "
+            "systems to communicate."
         ),
+        "source": "api-documentation",
+        "section": "introduction",
     },
     {
         "id": 3,
         "text": (
             "FastAPI is a Python web framework used to build APIs."
         ),
+        "source": "fastapi-notes",
+        "section": "overview",
+    },
+    {
+        "id": 4,
+        "text": (
+            "REST APIs commonly use HTTP requests and responses "
+            "to exchange data between software applications."
+        ),
+        "source": "api-documentation",
+        "section": "rest",
     },
 ]
 
@@ -37,7 +52,9 @@ async def build_index() -> list[dict]:
         indexed_documents.append({
             "id": document["id"],
             "text": document["text"],
-            "embedding": vector
+            "source": document["source"],
+            "section": document["section"],
+            "embedding": vector,
         })
 
     return indexed_documents
@@ -45,7 +62,8 @@ async def build_index() -> list[dict]:
 async def retrieve(
     question: str,
     index: list[dict],
-    top_k: int = 2
+    top_k: int = 2,
+    min_score: float = 0.55,
 ) -> list[dict]:
 
     question_vector = await get_embedding(question)
@@ -61,7 +79,9 @@ async def retrieve(
         scored_documents.append({
             "id": document["id"],
             "score": score,
-            "text": document["text"]
+            "text": document["text"],
+            "source": document["source"],
+            "section": document["section"],
         })
 
     scored_documents.sort(
@@ -69,7 +89,11 @@ async def retrieve(
         reverse=True
     )
 
-    return scored_documents[:top_k]
+    return [
+        document
+        for document in scored_documents[:top_k]
+        if document["score"] >= min_score
+    ]
 
 if __name__ == "__main__":
     import asyncio
@@ -78,7 +102,7 @@ if __name__ == "__main__":
         index = await build_index()
 
         results = await retrieve(
-            "How can two programs exchange information?",
+            "How can two applications exchange data using HTTP?",
             index
         )
 

@@ -11,8 +11,23 @@ from app.services.llm_service import (
     LLMResponseError
 )
 from fastapi.responses import StreamingResponse
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+from app.retrieval.retriever import build_index
+from app.services.rag_service import ask_with_rag
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.rag_index = await build_index()
+
+    print(
+        f"[RAG] Indexed "
+        f"{len(app.state.rag_index)} documents"
+    )
+
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 
 class AskRequest(BaseModel):
@@ -74,4 +89,11 @@ async def ask_stream(request: AskRequest):
     return StreamingResponse(
         stream_llm(request.question),
         media_type="text/plain"
+    )
+
+@app.post("/ask/rag")
+async def ask_rag(request: AskRequest):
+    return await ask_with_rag(
+        question=request.question,
+        index=app.state.rag_index
     )
