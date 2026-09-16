@@ -15,6 +15,14 @@ async def ask_with_rag(
         index=index
     )
 
+    for result in results:
+        print(
+            f"Document: {result['document_id']} | "
+            f"Chunk: {result['chunk_id']} | "
+            f"Score: {result['score']:.4f} | "
+            f"Text: {result['text']}"
+        )
+
     if not results:
         return {
             "answer": (
@@ -27,7 +35,8 @@ async def ask_with_rag(
     context = "\n\n".join(
         (
             f"[Source: {result['source']} | "
-            f"Section: {result['section']}] "
+            f"Section: {result['section']} | "
+            f"Chunk: {result['chunk_id']}]\n"
             f"{result['text']}"
         )
         for result in results
@@ -41,7 +50,8 @@ async def ask_with_rag(
 
     sources = [
         {
-            "id": result["id"],
+            "document_id": result["document_id"],
+            "chunk_id": result["chunk_id"],
             "source": result["source"],
             "section": result["section"],
             "score": result["score"],
@@ -72,6 +82,8 @@ if __name__ == "__main__":
 
         for source in result["sources"]:
             print(
+                f"Document: {source['document_id']} | "
+                f"Chunk: {source['chunk_id']} | "
                 f"{source['source']} | "
                 f"{source['section']} | "
                 f"{source['score']:.4f}"

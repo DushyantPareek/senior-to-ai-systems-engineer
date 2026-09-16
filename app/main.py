@@ -20,10 +20,7 @@ from app.services.rag_service import ask_with_rag
 async def lifespan(app: FastAPI):
     app.state.rag_index = await build_index()
 
-    print(
-        f"[RAG] Indexed "
-        f"{len(app.state.rag_index)} documents"
-    )
+    print(f"[RAG] Indexed {len(app.state.rag_index)} chunks")
 
     yield
 

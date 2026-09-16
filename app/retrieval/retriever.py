@@ -1,63 +1,34 @@
+from app.retrieval.documents import documents
+from app.retrieval.chunker import chunk_text
 from app.services.embedding_service import (
     get_embedding,
     cosine_similarity,
 )
 
-documents = [
-    {
-        "id": 1,
-        "text": (
-            "Dependency injection provides dependencies to a "
-            "class from outside rather than creating them internally."
-        ),
-        "source": "software-design-notes",
-        "section": "dependency-injection",
-    },
-    {
-        "id": 2,
-        "text": (
-            "An API is an interface that allows software "
-            "systems to communicate."
-        ),
-        "source": "api-documentation",
-        "section": "introduction",
-    },
-    {
-        "id": 3,
-        "text": (
-            "FastAPI is a Python web framework used to build APIs."
-        ),
-        "source": "fastapi-notes",
-        "section": "overview",
-    },
-    {
-        "id": 4,
-        "text": (
-            "REST APIs commonly use HTTP requests and responses "
-            "to exchange data between software applications."
-        ),
-        "source": "api-documentation",
-        "section": "rest",
-    },
-]
 
 async def build_index() -> list[dict]:
-    indexed_documents = []
+    indexed_chunks = []
 
     for document in documents:
-        vector = await get_embedding(
-            document["text"]
+        chunks = chunk_text(
+            document["text"],
+            chunk_size=20,
+            overlap=5,
         )
 
-        indexed_documents.append({
-            "id": document["id"],
-            "text": document["text"],
-            "source": document["source"],
-            "section": document["section"],
-            "embedding": vector,
-        })
+        for chunk_id, chunk in enumerate(chunks):
+            vector = await get_embedding(chunk)
 
-    return indexed_documents
+            indexed_chunks.append({
+                "document_id": document["id"],
+                "chunk_id": chunk_id,
+                "text": chunk,
+                "source": document["source"],
+                "section": document["section"],
+                "embedding": vector,
+            })
+
+    return indexed_chunks
 
 async def retrieve(
     question: str,
@@ -68,31 +39,32 @@ async def retrieve(
 
     question_vector = await get_embedding(question)
 
-    scored_documents = []
+    scored_chunks = []
 
-    for document in index:
+    for chunk in index:
         score = cosine_similarity(
             question_vector,
-            document["embedding"]
+            chunk["embedding"]
         )
 
-        scored_documents.append({
-            "id": document["id"],
+        scored_chunks.append({
+            "document_id": chunk["document_id"],
+            "chunk_id": chunk["chunk_id"],
             "score": score,
-            "text": document["text"],
-            "source": document["source"],
-            "section": document["section"],
+            "text": chunk["text"],
+            "source": chunk["source"],
+            "section": chunk["section"],
         })
 
-    scored_documents.sort(
+    scored_chunks.sort(
         key=lambda item: item["score"],
         reverse=True
     )
 
     return [
-        document
-        for document in scored_documents[:top_k]
-        if document["score"] >= min_score
+        chunk
+        for chunk in scored_chunks[:top_k]
+        if chunk["score"] >= min_score
     ]
 
 if __name__ == "__main__":
