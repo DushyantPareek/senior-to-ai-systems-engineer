@@ -1,7 +1,5 @@
-from app.retrieval.retriever import (
-    build_index,
-    retrieve,
-)
+from app.retrieval.retriever import retrieve
+from app.retrieval.indexer import build_index
 from app.services.llm_service import ask_llm
 from app.prompts.prompts import RAG_SYSTEM_PROMPT
 

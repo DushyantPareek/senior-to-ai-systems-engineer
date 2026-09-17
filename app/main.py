@@ -13,7 +13,7 @@ from app.services.llm_service import (
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 
-from app.retrieval.retriever import build_index
+from app.retrieval.indexer import build_index
 from app.services.rag_service import ask_with_rag
 
 @asynccontextmanager

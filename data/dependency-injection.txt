@@ -1,0 +1,5 @@
+Dependency injection is a software design technique where a class receives its dependencies from outside instead of creating them internally.
+
+Dependency injection reduces coupling between components and makes applications easier to test and maintain.
+
+Constructor injection is a common form of dependency injection where required dependencies are provided through the class constructor.
