@@ -2,3 +2,6 @@
 .env
 __pycache__/
 *.pyc
+# Generated RAG index state
+data/index.json
+data/index_manifest.json

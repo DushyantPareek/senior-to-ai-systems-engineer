@@ -17,7 +17,7 @@ def load_text_document(
     text = path.read_text(encoding="utf-8")
 
     return {
-        "id": document_id,
+        "id": str(document_id),
         "text": text,
         "source": path.name,
         "section": section,
