@@ -4,8 +4,15 @@ import math
 
 OLLAMA_EMBED_URL = "http://localhost:11434/api/embed"
 
+embedding_call_count = 0
+
 
 async def get_embedding(text: str) -> list[float]:
+    global embedding_call_count
+
+    embedding_call_count += 1
+    print(f"[EMBEDDING] Generating embedding #{embedding_call_count}")
+
     payload = {
         "model": "nomic-embed-text",
         "input": text

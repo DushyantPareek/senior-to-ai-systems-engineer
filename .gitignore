@@ -5,3 +5,5 @@ __pycache__/
 # Generated RAG index state
 data/index.json
 data/index_manifest.json
+# Chroma local vector database
+data/chroma/

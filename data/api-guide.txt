@@ -7,5 +7,5 @@ GET is commonly used to retrieve data, POST to create data, PUT to update data, 
 API authentication verifies the identity of a client before allowing access to protected resources.
 APIs may use mechanisms such as API keys or access tokens for authentication.
 
-HTTP status codes communicate the result of a request.
+HTTP status codes communicate the result of a request
 For example, successful requests may return a 200 status code, while client errors may return a 400-series status code.
