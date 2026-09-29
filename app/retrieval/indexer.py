@@ -3,6 +3,10 @@ from app.retrieval.chunker import chunk_text
 from app.services.embedding_service import get_embedding
 from app.retrieval.manifest import load_manifest, save_manifest
 from app.retrieval.index_store import load_index, save_index
+from app.retrieval.vector_store import (
+    upsert_chunks,
+    delete_document,
+)
 
 
 def get_document_status(
@@ -59,20 +63,28 @@ async def build_index() -> list[dict]:
             overlap=5,
         )
 
+        document_chunks = []
+
         for chunk_id, chunk in enumerate(chunks):
             vector = await get_embedding(chunk)
 
-            indexed_chunks.append(
-                {
-                    "document_id": document["id"],
-                    "chunk_id": chunk_id,
-                    "text": chunk,
-                    "source": document["source"],
-                    "section": document["section"],
-                    "content_hash": document["content_hash"],
-                    "embedding": vector,
-                }
-            )
+            indexed_chunk = {
+                "document_id": document["id"],
+                "chunk_id": chunk_id,
+                "text": chunk,
+                "source": document["source"],
+                "section": document["section"],
+                "content_hash": document["content_hash"],
+                "embedding": vector,
+            }
+
+            document_chunks.append(indexed_chunk)
+            indexed_chunks.append(indexed_chunk)
+        
+        if status == "CHANGED":
+            delete_document(document["id"])
+
+        upsert_chunks(document_chunks)
 
         current_manifest[document["id"]] = document["content_hash"]
 

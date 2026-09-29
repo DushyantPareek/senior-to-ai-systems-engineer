@@ -18,11 +18,12 @@ from app.services.rag_service import ask_with_rag
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.rag_index = await build_index()
+    index = await build_index()
 
-    print(f"[RAG] Indexed {len(app.state.rag_index)} chunks")
+    print(f"[RAG] Indexed {len(index)} chunks")
 
     yield
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -91,6 +92,5 @@ async def ask_stream(request: AskRequest):
 @app.post("/ask/rag")
 async def ask_rag(request: AskRequest):
     return await ask_with_rag(
-        question=request.question,
-        index=app.state.rag_index
+        question=request.question
     )

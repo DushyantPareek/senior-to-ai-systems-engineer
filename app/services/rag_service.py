@@ -4,20 +4,18 @@ from app.services.llm_service import ask_llm
 from app.prompts.prompts import RAG_SYSTEM_PROMPT
 
 async def ask_with_rag(
-    question: str,
-    index: list[dict]
+    question: str
 ) -> dict:
 
     results = await retrieve(
-        question=question,
-        index=index
+        question=question
     )
 
     for result in results:
         print(
             f"Document: {result['document_id']} | "
             f"Chunk: {result['chunk_id']} | "
-            f"Score: {result['score']:.4f} | "
+            f"Distance: {result['distance']:.4f} | "
             f"Text: {result['text']}"
         )
 
@@ -52,7 +50,7 @@ async def ask_with_rag(
             "chunk_id": result["chunk_id"],
             "source": result["source"],
             "section": result["section"],
-            "score": result["score"],
+            "distance": result["distance"],
         }
         for result in results
     ]
@@ -66,11 +64,10 @@ if __name__ == "__main__":
     import asyncio
 
     async def test():
-        index = await build_index()
+        await build_index()
 
         result = await ask_with_rag(
-            "What is Kubernetes?",
-            index
+            "What is Kubernetes?"
         )
 
         print("\n[Answer]")
@@ -84,7 +81,5 @@ if __name__ == "__main__":
                 f"Chunk: {source['chunk_id']} | "
                 f"{source['source']} | "
                 f"{source['section']} | "
-                f"{source['score']:.4f}"
+                f"Distance: {source['distance']:.4f}"
             )
-
-    asyncio.run(test())

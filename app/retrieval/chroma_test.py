@@ -1,29 +1,19 @@
 import asyncio
-import chromadb
 
+from app.retrieval.vector_store import search
 from app.services.embedding_service import get_embedding
 
 
-client = chromadb.PersistentClient(
-    path="./data/chroma"
-)
-
-collection = client.get_or_create_collection(
-    name="rag_documents"
-)
-
-
 async def main():
-    question = "How can software applications communicate?"
+    question = "How do applications communicate using HTTP?"
 
     query_embedding = await get_embedding(question)
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=2
+    results = search(
+        query_embedding=query_embedding,
+        top_k=3,
     )
 
-    print("Results:")
     print(results)
 
 

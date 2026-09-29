@@ -61,6 +61,7 @@ if __name__ == "__main__":
 
         text_a = "An API allows software systems to communicate."
         text_b = "Chocolate cake requires flour, sugar, and eggs."
+        text_c = ""
 
         print("Getting vector A...")
         vector_a = await get_embedding(text_a)

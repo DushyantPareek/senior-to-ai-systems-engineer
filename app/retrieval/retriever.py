@@ -3,58 +3,57 @@ from app.services.embedding_service import (
     cosine_similarity,
 )
 from app.retrieval.indexer import build_index
+from app.retrieval.vector_store import search
 
 async def retrieve(
     question: str,
-    index: list[dict],
     top_k: int = 2,
-    min_score: float = 0.55,
 ) -> list[dict]:
 
     question_vector = await get_embedding(question)
 
-    scored_chunks = []
-
-    for chunk in index:
-        score = cosine_similarity(
-            question_vector,
-            chunk["embedding"]
-        )
-
-        scored_chunks.append({
-            "document_id": chunk["document_id"],
-            "chunk_id": chunk["chunk_id"],
-            "score": score,
-            "text": chunk["text"],
-            "source": chunk["source"],
-            "section": chunk["section"],
-        })
-
-    scored_chunks.sort(
-        key=lambda item: item["score"],
-        reverse=True
+    results = search(
+        query_embedding=question_vector,
+        top_k=top_k,
     )
 
-    return [
-        chunk
-        for chunk in scored_chunks[:top_k]
-        if chunk["score"] >= min_score
-    ]
+    retrieved_chunks = []
+
+    documents = results["documents"][0]
+    metadatas = results["metadatas"][0]
+    distances = results["distances"][0]
+
+    for document, metadata, distance in zip(
+        documents,
+        metadatas,
+        distances,
+    ):
+        retrieved_chunks.append(
+            {
+                "document_id": metadata["document_id"],
+                "chunk_id": metadata["chunk_id"],
+                "distance": distance,
+                "text": document,
+                "source": metadata["source"],
+                "section": metadata["section"],
+            }
+        )
+
+    return retrieved_chunks
 
 if __name__ == "__main__":
     import asyncio
 
     async def test():
-        index = await build_index()
+        await build_index()
 
         results = await retrieve(
             "How can two applications exchange data using HTTP?",
-            index
         )
 
         for result in results:
             print(
-                f"Score: {result['score']:.4f} | "
+                f"Distance: {result['distance']:.4f} | "
                 f"Document: {result['text']}"
             )
 
