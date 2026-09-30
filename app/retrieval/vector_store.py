@@ -51,7 +51,7 @@ def upsert_chunks(chunks: list[dict]) -> None:
         metadatas=metadatas,
     )
 
-def delete_document(document_id: int) -> None:
+def delete_document(document_id: str) -> None:
     collection.delete(
         where={"document_id": document_id}
     )

@@ -7,17 +7,16 @@ def calculate_content_hash(text: str) -> str:
         text.encode("utf-8")
     ).hexdigest()
 
-
 def load_text_document(
     file_path: str | Path,
-    document_id: int,
+    document_id: str,
     section: str,
 ) -> dict:
     path = Path(file_path)
     text = path.read_text(encoding="utf-8")
 
     return {
-        "id": str(document_id),
+        "id": document_id,
         "text": text,
         "source": path.name,
         "section": section,
@@ -32,14 +31,11 @@ def load_text_documents(
 
     documents = []
 
-    for document_id, file_path in enumerate(
-        sorted(directory_path.glob("*.txt")),
-        start=1,
-    ):
+    for file_path in sorted(directory_path.glob("*.txt")):
         documents.append(
             load_text_document(
                 file_path=file_path,
-                document_id=document_id,
+                document_id=file_path.name,
                 section="general",
             )
         )

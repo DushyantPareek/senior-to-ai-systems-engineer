@@ -34,6 +34,24 @@ async def build_index() -> list[dict]:
 
     documents = load_documents()
 
+    
+    current_document_ids = {
+        document["id"]
+        for document in documents
+    }
+
+    previous_document_ids = set(previous_manifest.keys())
+
+    deleted_document_ids = previous_document_ids - current_document_ids
+    
+    for deleted_id in deleted_document_ids:
+        delete_document(deleted_id)
+
+        print(
+            f"Document ID: {deleted_id} | Status: DELETED"
+        )
+
+
     for document in documents:
         status = get_document_status(
             document,
