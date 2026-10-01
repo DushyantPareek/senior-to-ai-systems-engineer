@@ -1,14 +1,16 @@
-from app.services.embedding_service import (
-    get_embedding,
-    cosine_similarity,
-)
+from app.services.embedding_service import get_embedding
 from app.retrieval.indexer import build_index
 from app.retrieval.vector_store import search
+from app.config import settings
+
 
 async def retrieve(
     question: str,
-    top_k: int = 2,
+    top_k: int | None = None,
 ) -> list[dict]:
+
+    if top_k is None:
+        top_k = settings.rag_top_k
 
     question_vector = await get_embedding(question)
 
@@ -28,6 +30,9 @@ async def retrieve(
         metadatas,
         distances,
     ):
+        if distance > settings.rag_max_distance:
+            continue
+
         retrieved_chunks.append(
             {
                 "document_id": metadata["document_id"],

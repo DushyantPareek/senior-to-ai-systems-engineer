@@ -1,0 +1,22 @@
+[
+  {
+    "question": "What is an API?",
+    "expected_document": "api-guide.txt"
+  },
+  {
+    "question": "Explain dependency injection.",
+    "expected_document": "dependency-injection.txt"
+  },
+  {
+    "question": "What HTTP method is used to update data?",
+    "expected_document": "api-guide.txt"
+  },
+  {
+    "question": "How does a server indicate that an HTTP request succeeded?",
+    "expected_document": "api-guide.txt"
+  },
+  {
+    "question": "How do I bake a chocolate cake?",
+    "expected_document": null
+  }
+]
